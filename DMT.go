@@ -13,26 +13,37 @@ import (
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
-// UI Variables
+// General UI Variables
 var filePath string
 var compression int = 0
 var strTargetSize string = "10"
+
+// Popup Modal Variables
 var statusMessage string
 var encodingNow bool
 var invalidFile bool
+var encodeError bool
 
-var dropTarget = "Drop here"
-
-// Info
+// Retrieves required video information using ffprobe
 func getVideoInfo(fileName string) (string, int, int, string) {
-	log.Println("Getting video size for", fileName)
+
+	//FFprobe call
 	data, err := ffmpeg.Probe(fileName)
 	if err != nil {
 		invalidFile = true
+		log.Printf("ffprobe error with: %s\n", fileName)
 		log.Println(err)
 		return "", 0, 0, ""
 	}
 	//log.Println("got video info", data)
+
+	// TODO add additional checks for other container formats.
+	/*
+		webm "duration" is under format and not streams
+		needs additional testing with other video containers
+	*/
+
+	// Format into json struct
 	type VideoInfo struct {
 		Streams []struct {
 			CodecType string `json:"codec_type"`
@@ -40,20 +51,34 @@ func getVideoInfo(fileName string) (string, int, int, string) {
 			Height    int
 			Duration  string
 		} `json:"streams"`
+		Format struct {
+			Duration string
+		} `json:"format"`
 	}
 	vInfo := &VideoInfo{}
 	err = json.Unmarshal([]byte(data), vInfo)
 	if err != nil {
-		panic(err)
+		invalidFile = true
+		log.Print("Error parsing json data from ffprobe: ")
+		log.Println(err)
+		return "", 0, 0, ""
 	}
+
+	// Filter out and return data
 	for _, s := range vInfo.Streams {
 		if s.CodecType == "video" {
+			if s.Duration == "" {
+				// Webm format support
+				// Hacky, better way would be checking container type first
+				s.Duration = vInfo.Format.Duration
+			}
 			return s.CodecType, s.Width, s.Height, s.Duration
 		}
 	}
 	return "", 0, 0, ""
 }
 
+// Called for 'standard' compression
 func x264Encode(filePath string, bitrate float32) {
 	// File directory shenanigans
 	var levels []string = strings.Split(filePath, "/")
@@ -61,15 +86,9 @@ func x264Encode(filePath string, bitrate float32) {
 	var fileName string = fullFileName[0]
 
 	// Bitrate shenanigans
-	//var targetBitrate = bitrate - 150
-	//var strTargetBitrate = strconv.FormatFloat(float64(targetBitrate), 'f', -1, 64)
 	var strMaxBitrate = strconv.FormatFloat(float64(bitrate), 'f', -1, 64)
 
-	fmt.Println("here")
-	fmt.Println(fileName)
-	fmt.Println(bitrate)
-
-	// FFmpeg
+	// FFmpeg 1st pass
 	pass1Err := ffmpeg.Input(filePath).Output("./"+fileName+"_x264.mp4", ffmpeg.KwArgs{
 		"c:v":      "libx264",
 		"preset":   "slow",
@@ -81,13 +100,16 @@ func x264Encode(filePath string, bitrate float32) {
 		"an":       "",
 		"f":        "null",
 	}).
-		OverWriteOutput().SetFfmpegPath("./").ErrorToStdOut().Run()
+		OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
 	if pass1Err != nil {
-		log.Fatalf("Error occurred while performing 1st pass: %v", pass1Err)
+		encodeError = true
+		log.Println("Error occurred while performing 1st pass: %v", pass1Err)
+		return
 	} else {
 		log.Println("1st pass done!")
 	}
 
+	// FFmpeg 2nd pass
 	pass2Err := ffmpeg.Input(filePath).Output("./"+fileName+"_x264.mp4", ffmpeg.KwArgs{
 		"c:v":      "libx264",
 		"preset":   "slow",
@@ -98,22 +120,27 @@ func x264Encode(filePath string, bitrate float32) {
 		"c:a":      "libopus",
 		"b:a":      "96k",
 	}).
-		OverWriteOutput().ErrorToStdOut().Run()
+		OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
 	if pass2Err != nil {
-		log.Fatalf("Error occurred while performing 1st pass: %v", pass2Err)
+		encodeError = true
+		log.Printf("Error occurred while performing 1st pass: %v", pass2Err)
+		return
 	} else {
 		log.Println("2nd pass done!")
+
+		// Remove 2 pass log files
 		err := os.Remove("./ffmpeg2pass-0.log")
 		if err != nil {
-			log.Println(err)
+			log.Println("Error removing 2-pass log files: %v\n", err)
 		}
 		err = os.Remove("./ffmpeg2pass-0.log.mbtree")
 		if err != nil {
-			log.Println(err)
+			log.Println("Error removing 2-pass log files: %v\n", err)
 		}
 	}
 }
 
+// Called for 'better' compression
 func vp9Encode(filePath string, bitrate float32) {
 	// File directory shenanigans
 	var levels []string = strings.Split(filePath, "/")
@@ -121,14 +148,9 @@ func vp9Encode(filePath string, bitrate float32) {
 	var fileName string = fullFileName[0]
 
 	// Bitrate shenanigans
-	//var targetBitrate = bitrate - 150
-	//var strTargetBitrate = strconv.FormatFloat(float64(targetBitrate), 'f', -1, 64)
 	var strMaxBitrate = strconv.FormatFloat(float64(bitrate), 'f', -1, 64)
 
-	fmt.Println("here")
-	fmt.Println(fileName)
-	fmt.Println(bitrate)
-
+	// FFmpeg 1st pass
 	pass1Err := ffmpeg.Input(filePath).Output("./"+fileName+"_vp9.webm", ffmpeg.KwArgs{
 		"c:v":  "libvpx-vp9",
 		"b:v":  strMaxBitrate + "k",
@@ -136,13 +158,16 @@ func vp9Encode(filePath string, bitrate float32) {
 		"an":   "",
 		"f":    "null",
 	}).
-		OverWriteOutput().ErrorToStdOut().Run()
+		OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
 	if pass1Err != nil {
-		log.Fatalf("Error occurred while performing 1st pass: %v", pass1Err)
+		encodeError = true
+		log.Println("Error occurred while performing 1st pass: %v", pass1Err)
+		return
 	} else {
 		log.Println("1st pass done!")
 	}
 
+	// FFmpeg 2nd pass
 	pass2Err := ffmpeg.Input(filePath).Output("./"+fileName+"_vp9.webm", ffmpeg.KwArgs{
 		"c:v":     "libvpx-vp9",
 		"b:v":     strMaxBitrate + "k",
@@ -151,36 +176,53 @@ func vp9Encode(filePath string, bitrate float32) {
 		"c:a":     "libopus",
 		"b:a":     "96k",
 	}).
-		OverWriteOutput().ErrorToStdOut().Run()
+		OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
 	if pass2Err != nil {
-		log.Fatalf("Error occurred while performing 1st pass: %v", pass2Err)
+		encodeError = true
+		log.Println("Error occurred while performing 2nd pass: %v", pass2Err)
+		return
 	} else {
 		log.Println("2nd pass done!")
+
+		// Remove 2 pass log files
 		err := os.Remove("./ffmpeg2pass-0.log")
 		if err != nil {
-			log.Fatal(err)
+			log.Println("Error removing 2-pass log files: %v\n", err)
+		}
+		err = os.Remove("./ffmpeg2pass-0.log.mbtree")
+		if err != nil {
+			log.Println("Error removing 2-pass log files: %v\n", err)
 		}
 	}
 }
 
-// Returns bitrate in bits
+// Calculates the target bitrate in kilobits per second
 func calculateTarget(targetSize float32, duration float32) float32 {
-	var realTarget = targetSize * 8000 //kilobits
+	var realTarget = targetSize * 8000 // kilobit conversion
 	var targetBitrate = realTarget / duration
-	return (targetBitrate - 150)
+	return (targetBitrate - 150) // Leeway? Needs additional testing and research
 }
 
+// Encode helper function
 func beginEncode() {
+
+	// Parse the target bitrate value from the GUI
 	targetFileSize, err := strconv.ParseFloat(strTargetSize, 32)
+	if err != nil {
+		log.Println("Error with parsing file size: ", err)
+		log.Println(targetFileSize)
+	}
+
+	// Retrieve and parse video file information
 	t, w, h, d := getVideoInfo(filePath)
 	if invalidFile {
-		log.Printf("Aborting encode due to file error")
+		log.Println("Aborting encode due to file error")
 		encodingNow = false
 		return
 	}
 	dVal, err := strconv.ParseFloat(d, 32)
 	if err != nil {
-		fmt.Println("Error parsing video information: ", err)
+		log.Println("Error parsing video information: ", err)
 		encodingNow = false
 		return
 	}
@@ -192,11 +234,11 @@ func beginEncode() {
 		vp9Encode(filePath, float32(target))
 	}
 
-	//encodingNow = false
 	statusMessage = "Done!"
 }
 
 func loop() {
+	// Conditional Popup Modals
 	if encodingNow {
 		g.PopupModal("Status").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
 			g.Label(statusMessage),
@@ -211,7 +253,7 @@ func loop() {
 
 	if invalidFile {
 		g.PopupModal("File Error").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
-			g.Label("Can't find the selected file!"),
+			g.Label("Can't find the selected file."),
 			g.Button("Close").OnClick(func() {
 				// Close the modal once the task is done or if the user clicks "Close"
 				invalidFile = false
@@ -221,7 +263,21 @@ func loop() {
 		g.OpenPopup("File Error")
 	}
 
+	if encodeError {
+		g.PopupModal("Encode Error").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
+			g.Label("FFmpeg encountered an error while encoding."),
+			g.Button("Close").OnClick(func() {
+				// Close the modal once the task is done or if the user clicks "Close"
+				encodeError = false
+				g.CloseCurrentPopup()
+			}),
+		).Build()
+		g.OpenPopup("Encode Error")
+	}
+
+	// General GUI window
 	g.SingleWindow().Layout(
+
 		// File selection
 		g.Label("Video File"),
 		g.Row(
@@ -232,10 +288,11 @@ func loop() {
 				if err != nil {
 					log.Println(err)
 				}
-				fmt.Println("Selected file:", filename)
+				log.Println("Selected file:", filename)
 				filePath = strings.ReplaceAll(filename, `\`, "/")
 			}),
 		),
+
 		// Compression selection
 		g.Label("Compression"),
 		g.Row(
@@ -250,7 +307,6 @@ func loop() {
 				compression = 1
 			}),
 			g.Tooltip("VP9").Layout(
-
 				g.BulletText("Uses the VP9 video codec"),
 				g.BulletText("Takes longer to encode"),
 				g.BulletTextf("iOS devices might be incompatible"),
@@ -262,38 +318,24 @@ func loop() {
 		g.Row(
 			g.InputText(&strTargetSize),
 			g.Tooltip("Target").Layout(
-				g.Label("10 MB limit for non-nitro"),
-				g.Label("50 MB limit for nitro classic"),
-				g.Label("500 MB limit for nitro"),
+				g.BulletText("10 MB limit for non-nitro"),
+				g.BulletText("50 MB limit for nitro classic"),
+				g.BulletText("500 MB limit for nitro"),
 			),
 			g.Label("MB"),
 		),
 
+		// Compress button
 		g.Button("Compress").OnClick(func() {
-			//Open status modal here
 			encodingNow = true
 			invalidFile = false
 			statusMessage = "Encoding"
-			go beginEncode()
-			//Wait for task to finish
-			//Automatically close status modal here
+			go beginEncode() // go routine to avoid blocking giu main thread
 		}),
 	)
 }
 
 func main() {
-	wnd := g.NewMasterWindow("Discord Media Compressor Beta 1", 350, 200, g.MasterWindowFlagsNotResizable)
+	wnd := g.NewMasterWindow("Discord Media Compressor Beta", 350, 200, g.MasterWindowFlagsNotResizable)
 	wnd.Run(loop)
-	/*
-		t, w, h, d := getVideoInfo("D:/GoLang/ffgo/input.mp4")
-		dVal, err := strconv.ParseFloat(d, 32)
-		if err != nil {
-			fmt.Println("Error parsing video information: ", err)
-			return
-		}
-		fmt.Println(t, w, h, (dVal))
-		var target = calculateTarget(10, float32(dVal))
-		x264Encode(`D:/GoLang/ffgo/input.mp4`, target)
-	*/
-	//x264Encode()
 }
