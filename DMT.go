@@ -278,64 +278,78 @@ func loop() {
 	// General GUI window
 	g.SingleWindow().Layout(
 
-		// File selection
-		g.Label("Video File"),
-		g.Row(
-			g.InputText(&filePath),
-			g.Button("Select...").OnClick(func() {
-				filename, err := dialog.File().Title("Select a File").Load()
-				// Not needed?
-				if err != nil {
-					log.Println(err)
-				}
-				log.Println("Selected file:", filename)
-				filePath = strings.ReplaceAll(filename, `\`, "/")
-			}),
-		),
+		// Video Compressor UI
+		g.TabBar().TabItems(
+			g.TabItem("Video Compressor").Layout(
+				g.Style().SetFontSize(20).To(
+					g.Label("Video Compressor"),
+				),
 
-		// Compression selection
-		g.Label("Compression"),
-		g.Row(
-			g.RadioButton("Standard", compression == 0).OnChange(func() {
-				compression = 0
-			}),
-			g.Tooltip("h264").Layout(
-				g.BulletText("Uses the h264 video codec"),
+				// File selection
+				g.Label("Video File"),
+				g.Row(
+					g.InputText(&filePath),
+					g.Button("Select...").OnClick(func() {
+						filename, err := dialog.File().Title("Select a File").Load()
+						// Not needed?
+						if err != nil {
+							log.Println(err)
+						}
+						log.Println("Selected file:", filename)
+						filePath = strings.ReplaceAll(filename, `\`, "/")
+					}),
+				),
+
+				// Compression selection
+				g.Label("Compression"),
+				g.Row(
+					g.RadioButton("Standard", compression == 0).OnChange(func() {
+						compression = 0
+					}),
+					g.Tooltip("h264").Layout(
+						g.BulletText("Uses the h264 video codec"),
+					),
+
+					g.RadioButton("Better", compression == 1).OnChange(func() {
+						compression = 1
+					}),
+					g.Tooltip("VP9").Layout(
+						g.BulletText("Uses the VP9 video codec"),
+						g.BulletText("Takes longer to encode"),
+						g.BulletTextf("iOS devices might be incompatible"),
+					),
+				),
+
+				// Target File Size
+				g.Label("Target File Size"),
+				g.Row(
+					g.InputText(&strTargetSize),
+					g.Tooltip("Target").Layout(
+						g.BulletText("10 MB limit for non-nitro"),
+						g.BulletText("50 MB limit for nitro classic"),
+						g.BulletText("500 MB limit for nitro"),
+					),
+					g.Label("MB"),
+				),
+
+				// Compress button
+				g.Button("Compress").OnClick(func() {
+					encodingNow = true
+					invalidFile = false
+					statusMessage = "Encoding"
+					go beginEncode() // go routine to avoid blocking giu main thread
+				}),
 			),
 
-			g.RadioButton("Better", compression == 1).OnChange(func() {
-				compression = 1
-			}),
-			g.Tooltip("VP9").Layout(
-				g.BulletText("Uses the VP9 video codec"),
-				g.BulletText("Takes longer to encode"),
-				g.BulletTextf("iOS devices might be incompatible"),
+			// Audio converter GUI
+			g.TabItem("Audio Converter").Layout(
+				g.Label("Audio Converter"),
 			),
 		),
-
-		// Target File Size
-		g.Label("Target File Size"),
-		g.Row(
-			g.InputText(&strTargetSize),
-			g.Tooltip("Target").Layout(
-				g.BulletText("10 MB limit for non-nitro"),
-				g.BulletText("50 MB limit for nitro classic"),
-				g.BulletText("500 MB limit for nitro"),
-			),
-			g.Label("MB"),
-		),
-
-		// Compress button
-		g.Button("Compress").OnClick(func() {
-			encodingNow = true
-			invalidFile = false
-			statusMessage = "Encoding"
-			go beginEncode() // go routine to avoid blocking giu main thread
-		}),
 	)
 }
 
 func main() {
-	wnd := g.NewMasterWindow("Discord Media Compressor Beta", 350, 200, g.MasterWindowFlagsNotResizable)
+	wnd := g.NewMasterWindow("Discord Media Tool Beta", 400, 300, g.MasterWindowFlagsNotResizable)
 	wnd.Run(loop)
 }
