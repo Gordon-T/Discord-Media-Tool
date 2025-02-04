@@ -17,6 +17,7 @@ import (
 var filePath string
 var compression int = 0
 var strTargetSize string = "10"
+var strAudioBitrate string = "192"
 
 // Popup Modal Variables
 var statusMessage string
@@ -35,7 +36,7 @@ func getVideoInfo(fileName string) (string, int, int, string) {
 		log.Println(err)
 		return "", 0, 0, ""
 	}
-	//log.Println("got video info", data)
+	log.Println("got video info", data)
 
 	// TODO add additional checks for other container formats.
 	/*
@@ -76,6 +77,41 @@ func getVideoInfo(fileName string) (string, int, int, string) {
 		}
 	}
 	return "", 0, 0, ""
+}
+
+// Called to retrieve details from file for audio
+func getAudioInfo(fileName string) (isAudioFile bool) {
+	data, err := ffmpeg.Probe(fileName)
+	if err != nil {
+		invalidFile = true
+		log.Printf("ffprobe error with: %s\n", fileName)
+		log.Println(err)
+		return false
+	}
+	//log.Println("got video info", data)
+
+	// Format into json struct
+	type VideoInfo struct {
+		Streams []struct {
+			CodecType string `json:"codec_type"`
+		} `json:"streams"`
+	}
+	vInfo := &VideoInfo{}
+	err = json.Unmarshal([]byte(data), vInfo)
+	if err != nil {
+		invalidFile = true
+		log.Print("Error parsing json data from ffprobe: ")
+		log.Println(err)
+		return false
+	}
+
+	// Filter out and return data
+	for _, s := range vInfo.Streams {
+		if s.CodecType == "audio" {
+			return true
+		}
+	}
+	return false
 }
 
 // Called for 'standard' compression
@@ -200,7 +236,7 @@ func vp9Encode(filePath string, bitrate float32) {
 func calculateTarget(targetSize float32, duration float32) float32 {
 	var realTarget = targetSize * 8000 // kilobit conversion
 	var targetBitrate = realTarget / duration
-	return (targetBitrate - 150) // Leeway? Needs additional testing and research
+	return (targetBitrate) // Leeway? Needs additional testing and research
 }
 
 // Encode helper function
@@ -227,6 +263,8 @@ func beginEncode() {
 		return
 	}
 	fmt.Println(t, w, h, (dVal))
+
+	// Calculate target bitrate and then compress
 	var target = calculateTarget(float32(targetFileSize), float32(dVal))
 	if compression == 0 {
 		x264Encode(filePath, float32(target))
@@ -237,13 +275,67 @@ func beginEncode() {
 	statusMessage = "Done!"
 }
 
+func mp3encode(filePath string, bitrate float32) {
+	var levels []string = strings.Split(filePath, "/")
+	var fullFileName []string = strings.Split(levels[len(levels)-1], ".")
+	var fileName string = fullFileName[0]
+
+	// Bitrate shenanigans
+	var strBitrate = strconv.FormatFloat(float64(bitrate), 'f', -1, 64)
+
+	mp3Err := ffmpeg.Input(filePath).Output("./"+fileName+"_mp3.mp3", ffmpeg.KwArgs{
+		"vn":  "",
+		"b:a": strBitrate + "k",
+	}).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
+
+	if mp3Err != nil {
+		encodeError = true
+		log.Println("Error occurred while encoding mp3: %v", mp3Err)
+		return
+	} else {
+		log.Println("Encoded file to .mp3")
+	}
+
+}
+
+func beginAudioConvert() {
+	// Probe the file for audio details
+	// .mp3, .m4a, .m4a(aac non-apple), .opus, .flac, .wav
+	// .mp4 audio stream, .mkv audio, .webm audio ?
+	targetAudioBitrate, err := strconv.ParseFloat(strAudioBitrate, 32)
+	if err != nil {
+		log.Println("Error with parsing file size: ", err)
+		log.Println(targetAudioBitrate)
+	}
+
+	// Retrieve and parse audio details from file
+	t := getAudioInfo(filePath)
+	if invalidFile || !t {
+		log.Println("Aborting encode due to file error")
+		encodingNow = false
+		return
+	}
+
+	// Parse bitrate string
+	audioBitrate, err := strconv.ParseFloat(strAudioBitrate, 32)
+	if err != nil {
+		log.Println("Error parsing video information: ", err)
+		encodingNow = false
+		return
+	}
+
+	// Encode the audio into mp3
+	mp3encode(filePath, float32(audioBitrate))
+
+	statusMessage = "Done!"
+}
+
 func loop() {
 	// Conditional Popup Modals
 	if encodingNow {
 		g.PopupModal("Status").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
 			g.Label(statusMessage),
 			g.Button("Close").OnClick(func() {
-				// Close the modal once the task is done or if the user clicks "Close"
 				encodingNow = false
 				statusMessage = ""
 			}),
@@ -253,9 +345,8 @@ func loop() {
 
 	if invalidFile {
 		g.PopupModal("File Error").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
-			g.Label("Can't find the selected file."),
+			g.Label("Can't find the selected file or file is not supported"),
 			g.Button("Close").OnClick(func() {
-				// Close the modal once the task is done or if the user clicks "Close"
 				invalidFile = false
 				g.CloseCurrentPopup()
 			}),
@@ -281,9 +372,6 @@ func loop() {
 		// Video Compressor UI
 		g.TabBar().TabItems(
 			g.TabItem("Video Compressor").Layout(
-				g.Style().SetFontSize(20).To(
-					g.Label("Video Compressor"),
-				),
 
 				// File selection
 				g.Label("Video File"),
@@ -342,8 +430,34 @@ func loop() {
 			),
 
 			// Audio converter GUI
-			g.TabItem("Audio Converter").Layout(
-				g.Label("Audio Converter"),
+			g.TabItem("MP3 Converter").Layout(
+
+				// File Selection
+				g.Label("Audio/Video File"),
+				g.Row(
+					g.InputText(&filePath),
+					g.Button("Select...").OnClick(func() {
+						filename, err := dialog.File().Title("Select a File").Load()
+						if err != nil {
+							log.Println(err)
+						}
+						log.Println("Selected file:", filename)
+						filePath = strings.ReplaceAll(filename, `\`, "/")
+					}),
+				),
+
+				// Bitrate selection
+				g.Label("Audio Bitrate"),
+				g.Row(
+					g.InputText(&strAudioBitrate),
+					g.Label("Kb/s"),
+				),
+				g.Button("Convert").OnClick(func() {
+					encodingNow = true
+					invalidFile = false
+					statusMessage = "Encoding"
+					go beginAudioConvert()
+				}),
 			),
 		),
 	)
