@@ -31,13 +31,13 @@ func getMediaInfo(fileName string, mediaType string) MediaInfo {
 		log.Println(err)
 		return *mediaInfo
 	}
-	log.Println("got media info", info)
+	//log.Println("got media info", info)
 	err = json.Unmarshal([]byte(info), mediaInfo)
 	if err != nil {
 		invalidFile = true
 		log.Println("Error parsing json data from ffprobe:", err)
 	}
-	log.Println(*mediaInfo)
+	//log.Println(*mediaInfo)
 	//video file: {[{video 1920 1080} {audio 0 0}] {10.080000}}
 	//audio file: {[{audio 0 0}] {40.344000}}
 
@@ -49,7 +49,6 @@ func getMediaInfo(fileName string, mediaType string) MediaInfo {
 	}
 
 	mediaInfo.Format.Duration = "invalid"
-
 	return *mediaInfo
 }
 
@@ -113,11 +112,10 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 		}
 	} else { // vp9
 		ffmpegArguments = ffmpeg.KwArgs{
-			"c:v":      "libx264",
-			"preset":   "slow",
+			"c:v":      "libvpx-vp9",
 			"b:v":      strMaxBitrate + "k",
 			"maxrate":  strMaxBitrate + "k",
-			"movflags": "+faststart",
+			"deadline": "good",
 			"pass":     "2",
 			"c:a":      "libopus",
 			"b:a":      "96k",
@@ -166,4 +164,11 @@ func mp3encode(filePath string, bitrate float32) {
 		log.Println("Encoded file to .mp3")
 	}
 	encodingNow = false
+}
+
+// Calculates the target bitrate in kilobits per second
+func calculateTarget(targetSize float32, duration float32) float32 {
+	var realTarget = targetSize * 8000 // kilobit conversion
+	var targetBitrate = realTarget / duration
+	return (targetBitrate * 0.98) // Leeway? Needs additional testing and research
 }

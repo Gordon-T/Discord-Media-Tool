@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"strconv"
 	"strings"
 
@@ -16,18 +17,11 @@ var strTargetSize string = "10"
 var strAudioBitrate string = "192"
 
 // Popup Modal Variables
-var statusMessage string
 var encodingNow bool
-var multiEncode bool
+var encodingDone bool
 var invalidFile bool
 var encodeError bool
-
-// Calculates the target bitrate in kilobits per second
-func calculateTarget(targetSize float32, duration float32) float32 {
-	var realTarget = targetSize * 8000 // kilobit conversion
-	var targetBitrate = realTarget / duration
-	return (targetBitrate - 100) // Leeway? Needs additional testing and research
-}
+var ffmpegNotFound bool
 
 // Encode helper function
 func beginEncode() {
@@ -59,7 +53,7 @@ func beginEncode() {
 	videoEncode(filePath, float32(target), compression)
 
 	encodingNow = false
-	statusMessage = "Done!"
+	encodingDone = true
 }
 
 func beginAudioConvert() {
@@ -92,18 +86,45 @@ func beginAudioConvert() {
 	// Encode the audio into mp3
 	mp3encode(filePath, float32(audioBitrate))
 
-	statusMessage = "Done!"
+	encodingNow = false
+	encodingDone = true
 }
 
 func loop() {
 	// Conditional Popup Modals
+
+	// Shows when ffmpeg is not found
+	if ffmpegNotFound {
+		g.PopupModal("Dependency Check").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
+			g.Label(`"ffmpeg.exe" or "ffprobe.exe" not found!`),
+			g.Button("Close").OnClick(func() {
+				os.Exit(0)
+			}),
+		).Build()
+		g.OpenPopup("Dependency Check")
+	}
+
+	// Shows when ffmpeg is currently encoding something to block out main gui interaction
 	if encodingNow {
 		g.PopupModal("Status").Flags(g.WindowFlagsNoMove | g.WindowFlagsNoResize).Layout(
-			g.Label(statusMessage),
+			g.Label("Encoding, please wait..."),
 		).Build()
 		g.OpenPopup("Status")
 	}
 
+	// Shows after encoding is complete
+	if encodingDone {
+		g.PopupModal("Status ").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
+			g.Label("Encoding finished!"),
+			g.Button("Close").OnClick(func() {
+				encodingDone = false
+				g.CloseCurrentPopup()
+			}),
+		).Build()
+		g.OpenPopup("Status ")
+	}
+
+	// Shows when a invalid file is selected
 	if invalidFile {
 		g.PopupModal("File Error").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
 			g.Label("Can't find the selected file or file is not supported"),
@@ -115,6 +136,8 @@ func loop() {
 		g.OpenPopup("File Error")
 	}
 
+	// Shows up if something goes wrong when the user tries to encode something
+	// - Invalid size
 	if encodeError {
 		g.PopupModal("Encode Error").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
 			g.Label("FFmpeg encountered an error while encoding."),
@@ -126,18 +149,7 @@ func loop() {
 		g.OpenPopup("Encode Error")
 	}
 
-	if multiEncode {
-		g.PopupModal("Encode In-Progress").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
-			g.Label("Please wait until the current encode finishes"),
-			g.Button("Close").OnClick(func() {
-				multiEncode = false
-				g.CloseCurrentPopup()
-			}),
-		).Build()
-		g.OpenPopup("Encode In-Progress")
-	}
-
-	// General GUI window
+	// Main GUI window
 	g.SingleWindow().Layout(
 
 		// Video Compressor UI
@@ -150,7 +162,6 @@ func loop() {
 					g.InputText(&filePath),
 					g.Button("Select...").OnClick(func() {
 						filename, err := dialog.File().Title("Select a File").Load()
-						// Not needed?
 						if err != nil {
 							log.Println(err)
 						}
@@ -193,12 +204,10 @@ func loop() {
 
 				// Compress button
 				g.Button("Compress").OnClick(func() {
-					if encodingNow {
-						multiEncode = true
+					if encodingDone {
 						return
 					} else {
 						invalidFile = false
-						statusMessage = "Encoding, please wait..."
 						go beginEncode() // go routine to avoid blocking giu main thread
 					}
 				}),
@@ -228,12 +237,10 @@ func loop() {
 					g.Label("Kb/s"),
 				),
 				g.Button("Convert").OnClick(func() {
-					if encodingNow {
-						multiEncode = true
+					if encodingDone {
 						return
 					} else {
 						invalidFile = false
-						statusMessage = "Encoding, please wait..."
 						go beginAudioConvert()
 					}
 				}),
@@ -243,6 +250,17 @@ func loop() {
 }
 
 func main() {
+	// Check if dependencies exist
+	mpegCheck, err := os.Stat("ffmpeg.exe")
+	if err != nil && mpegCheck == nil {
+		ffmpegNotFound = true
+	}
+	probeCheck, err := os.Stat("ffprobe.exe")
+	if err != nil && probeCheck == nil {
+		ffmpegNotFound = true
+	}
+
+	// Start giu
 	wnd := g.NewMasterWindow("Discord Media Tool Sigma Edition", 400, 300, g.MasterWindowFlagsNotResizable)
 	wnd.Run(loop)
 }
