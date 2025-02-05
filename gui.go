@@ -1,6 +1,7 @@
 package main
 
 import (
+	"image/color"
 	"log"
 	"os"
 	"strconv"
@@ -150,8 +151,8 @@ func loop() {
 	}
 
 	// Main GUI window
-	g.SingleWindow().Layout(
 
+	g.SingleWindow().Layout(
 		// Video Compressor UI
 		g.TabBar().TabItems(
 			g.TabItem("Video Compressor").Layout(
@@ -159,7 +160,11 @@ func loop() {
 				// File selection
 				g.Label("Video File"),
 				g.Row(
-					g.InputText(&filePath),
+					g.Style().SetColor(g.StyleColorFrameBg, color.RGBA{0xF3, 0xF3, 0xF3, 255}).To(
+						g.Style().SetColor(g.StyleColorText, color.RGBA{0x00, 0x00, 0x00, 255}).To(
+							g.InputText(&filePath),
+						),
+					),
 					g.Button("Select...").OnClick(func() {
 						filename, err := dialog.File().Title("Select a File").Load()
 						if err != nil {
@@ -193,7 +198,11 @@ func loop() {
 				// Target File Size
 				g.Label("Target File Size"),
 				g.Row(
-					g.InputText(&strTargetSize),
+					g.Style().SetColor(g.StyleColorFrameBg, color.RGBA{0xF3, 0xF3, 0xF3, 255}).To(
+						g.Style().SetColor(g.StyleColorText, color.RGBA{0x00, 0x00, 0x00, 255}).To(
+							g.InputText(&strTargetSize).Size(75),
+						),
+					),
 					g.Tooltip("Target").Layout(
 						g.BulletText("10 MB limit for non-nitro"),
 						g.BulletText("50 MB limit for nitro classic"),
@@ -219,7 +228,11 @@ func loop() {
 				// File Selection
 				g.Label("Audio/Video File"),
 				g.Row(
-					g.InputText(&filePath),
+					g.Style().SetColor(g.StyleColorFrameBg, color.RGBA{0xF3, 0xF3, 0xF3, 255}).To(
+						g.Style().SetColor(g.StyleColorText, color.RGBA{0x00, 0x00, 0x00, 255}).To(
+							g.InputText(&filePath),
+						),
+					),
 					g.Button("Select...").OnClick(func() {
 						filename, err := dialog.File().Title("Select a File").Load()
 						if err != nil {
@@ -233,7 +246,11 @@ func loop() {
 				// Bitrate selection
 				g.Label("Audio Bitrate"),
 				g.Row(
-					g.InputText(&strAudioBitrate),
+					g.Style().SetColor(g.StyleColorFrameBg, color.RGBA{0xF3, 0xF3, 0xF3, 255}).To(
+						g.Style().SetColor(g.StyleColorText, color.RGBA{0x00, 0x00, 0x00, 255}).To(
+							g.InputText(&strAudioBitrate).Size(75),
+						),
+					),
 					g.Label("Kb/s"),
 				),
 				g.Button("Convert").OnClick(func() {
@@ -261,6 +278,6 @@ func main() {
 	}
 
 	// Start giu
-	wnd := g.NewMasterWindow("Discord Media Tool Sigma Edition", 400, 300, g.MasterWindowFlagsNotResizable)
+	wnd := g.NewMasterWindow("Discord Media Tool", 400, 300, g.MasterWindowFlagsNotResizable)
 	wnd.Run(loop)
 }
