@@ -16,6 +16,7 @@ var filePath string
 var compression int = 0
 var strTargetSize string = "10"
 var strAudioBitrate string = "192"
+var fsArgument bool
 
 // Popup Modal Variables
 var encodingNow bool
@@ -204,11 +205,20 @@ func loop() {
 						),
 					),
 					g.Tooltip("Target").Layout(
-						g.BulletText("10 MB limit for non-nitro"),
-						g.BulletText("50 MB limit for nitro classic"),
-						g.BulletText("500 MB limit for nitro"),
+						g.BulletText("Up to 10 MB limit for non-nitro"),
+						g.BulletText("Up to 50 MB limit for nitro classic"),
+						g.BulletText("Up to 500 MB limit for nitro"),
 					),
 					g.Label("MB"),
+					g.Checkbox("Strict Mode", &fsArgument),
+					g.Tooltip("Strict").Layout(
+						g.Label("Stops encoding if the file size reaches the target amount before"),
+						g.Label("finishing the encode, which can cause the duration of the output"),
+						g.Label("to be smaller."),
+						g.Label(""),
+						g.Label("Enable this if the compressed file is larger than the specified"),
+						g.Label("target size without this checked, which normally shouldn't happen."),
+					),
 				),
 
 				// Compress button

@@ -122,6 +122,16 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 		}
 	}
 
+	if fsArgument {
+		fSize, err := strconv.ParseFloat(strTargetSize, 32)
+		if err != nil {
+			encodeError = true
+			log.Printf("Error occurred while parsing target file size: %v", err)
+			return
+		}
+		ffmpegArguments["fs"] = (float32(fSize) * 1048576)
+	}
+
 	pass2Err := ffmpeg.Input(filePath).Output(outputName, ffmpegArguments).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
 	if pass2Err != nil {
 		encodeError = true
