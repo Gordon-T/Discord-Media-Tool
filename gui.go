@@ -272,6 +272,27 @@ func loop() {
 					}
 				}),
 			),
+
+			// Gif converter GUI
+			g.TabItem("Gif Converter").Layout(
+				// File Selection
+				g.Label("Video File"),
+				g.Row(
+					g.Style().SetColor(g.StyleColorFrameBg, color.RGBA{0xF3, 0xF3, 0xF3, 255}).To(
+						g.Style().SetColor(g.StyleColorText, color.RGBA{0x00, 0x00, 0x00, 255}).To(
+							g.InputText(&filePath),
+						),
+					),
+					g.Button("Select...").OnClick(func() {
+						filename, err := dialog.File().Title("Select a File").Load()
+						if err != nil {
+							log.Println(err)
+						}
+						log.Println("Selected file:", filename)
+						filePath = strings.ReplaceAll(filename, `\`, "/")
+					}),
+				),
+			),
 		),
 	)
 }
