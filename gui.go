@@ -17,10 +17,12 @@ var compression int = 0
 var strTargetSize string = "10"
 var strAudioBitrate string = "192"
 var fsArgument bool
+var conservativeBitrate bool
 
 // Popup Modal Variables
 var encodingNow bool
 var encodingDone bool
+
 var invalidFile bool
 var encodeError bool
 var ffmpegNotFound bool
@@ -51,7 +53,7 @@ func beginEncode() {
 	}
 
 	// Calculate target bitrate and then compress
-	var target = calculateTarget(float32(targetFileSize), float32(duration))
+	var target = calculateTarget(float32(targetFileSize), float32(duration), conservativeBitrate)
 	videoEncode(filePath, float32(target), compression)
 
 	encodingNow = false
@@ -90,6 +92,20 @@ func beginAudioConvert() {
 
 	encodingNow = false
 	encodingDone = true
+}
+
+func beginGifConvert() {
+	encodingNow = true
+	getMediaInfo(filePath, "video")
+	/*
+		mediaInfo := getMediaInfo(filePath, "video")
+		if invalidFile {
+			log.Println("Aborting encode due to file error")
+			encodingNow = false
+			return
+		}
+	*/
+	gifConvert(filePath)
 }
 
 func loop() {
@@ -156,7 +172,7 @@ func loop() {
 	g.SingleWindow().Layout(
 		// Video Compressor UI
 		g.TabBar().TabItems(
-			g.TabItem("Video Compressor").Layout(
+			g.TabItem("Video Converter").Layout(
 
 				// File selection
 				g.Label("Video File"),
@@ -176,23 +192,25 @@ func loop() {
 					}),
 				),
 
-				// Compression selection
-				g.Label("Compression"),
+				// Codec selection
+				g.Label("Video Codec"),
 				g.Row(
-					g.RadioButton("Standard", compression == 0).OnChange(func() {
+					g.RadioButton("h264 (.mp4)", compression == 0).OnChange(func() {
 						compression = 0
 					}),
-					g.Tooltip("h264").Layout(
-						g.BulletText("Uses the h264 video codec"),
+					g.Tooltip("h264 tip").Layout(
+						g.BulletText("Average quality"),
+						g.BulletText("Decent conversion speed"),
+						g.BulletText("Near universal compatibility"),
 					),
 
-					g.RadioButton("Better", compression == 1).OnChange(func() {
+					g.RadioButton("VP9 (.webm)", compression == 1).OnChange(func() {
 						compression = 1
 					}),
-					g.Tooltip("VP9").Layout(
-						g.BulletText("Uses the VP9 video codec"),
+					g.Tooltip("VP9 tip").Layout(
+						g.BulletText("Better quality than h264"),
 						g.BulletText("Takes longer to encode"),
-						g.BulletTextf("iOS devices might be incompatible"),
+						g.BulletText("Discord won't natively play these videos on iOS devices"),
 					),
 				),
 
@@ -210,6 +228,10 @@ func loop() {
 						g.BulletText("Up to 500 MB limit for nitro"),
 					),
 					g.Label("MB"),
+					g.Checkbox("Convervative Bitrate", &conservativeBitrate),
+					g.Tooltip("Conservative").Layout(
+						g.Label("After calculating the bitrate, reduce the bitrate slightly"),
+					),
 					g.Checkbox("Strict Mode", &fsArgument),
 					g.Tooltip("Strict").Layout(
 						g.Label("Stops encoding if the file size reaches the target amount before"),
@@ -276,6 +298,7 @@ func loop() {
 			// Gif converter GUI
 			g.TabItem("Gif Converter").Layout(
 				// File Selection
+				g.Label("Work in progress\n"),
 				g.Label("Video File"),
 				g.Row(
 					g.Style().SetColor(g.StyleColorFrameBg, color.RGBA{0xF3, 0xF3, 0xF3, 255}).To(
@@ -292,6 +315,15 @@ func loop() {
 						filePath = strings.ReplaceAll(filename, `\`, "/")
 					}),
 				),
+
+				g.Button("Convert").OnClick(func() {
+					if encodingDone {
+						return
+					} else {
+						invalidFile = false
+						go beginGifConvert()
+					}
+				}),
 			),
 		),
 	)

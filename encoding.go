@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -53,10 +54,9 @@ func getMediaInfo(fileName string, mediaType string) MediaInfo {
 }
 
 func videoEncode(filePath string, bitrate float32, codecType int) {
+
 	// File directory shenanigans
-	var levels []string = strings.Split(filePath, "/")
-	var fullFileName []string = strings.Split(levels[len(levels)-1], ".")
-	var fileName string = fullFileName[0]
+	var fileName string = filepath.Base(filePath)
 
 	// Bitrate shenanigans
 	var strMaxBitrate = strconv.FormatFloat(float64(bitrate), 'f', -1, 64)
@@ -89,7 +89,6 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 		}
 		outputName = "./" + outputName + "_vp9.webm"
 	}
-
 	pass1Err := ffmpeg.Input(filePath).Output(outputName, ffmpegArguments).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
 
 	if pass1Err != nil {
@@ -99,6 +98,8 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 	}
 
 	// Encode 2nd pass
+	outputName = filepath.Dir(filePath)
+
 	if codecType == 0 { // x264
 		ffmpegArguments = ffmpeg.KwArgs{
 			"c:v":      "libx264",
@@ -110,6 +111,8 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 			"c:a":      "libopus",
 			"b:a":      "96k",
 		}
+
+		outputName = outputName + `\` + strings.TrimSuffix(fileName, filepath.Ext(fileName)) + "_h264.mp4"
 	} else { // vp9
 		ffmpegArguments = ffmpeg.KwArgs{
 			"c:v":      "libvpx-vp9",
@@ -120,6 +123,8 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 			"c:a":      "libopus",
 			"b:a":      "96k",
 		}
+
+		outputName = outputName + `\` + strings.TrimSuffix(fileName, filepath.Ext(fileName)) + "_vp9.webm"
 	}
 
 	if fsArgument {
@@ -131,7 +136,7 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 		}
 		ffmpegArguments["fs"] = (float32(fSize) * 1048576)
 	}
-
+	log.Println(outputName)
 	pass2Err := ffmpeg.Input(filePath).Output(outputName, ffmpegArguments).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
 	if pass2Err != nil {
 		encodeError = true
@@ -154,14 +159,13 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 }
 
 func mp3encode(filePath string, bitrate float32) {
-	var levels []string = strings.Split(filePath, "/")
-	var fullFileName []string = strings.Split(levels[len(levels)-1], ".")
-	var fileName string = fullFileName[0]
+	var fileName string = filepath.Base(filePath)
+	var outputName = filepath.Dir(filePath) + `\` + strings.TrimSuffix(fileName, filepath.Ext(fileName)) + "_mp3.mp3"
 
 	// Bitrate shenanigans
 	var strBitrate = strconv.FormatFloat(float64(bitrate), 'f', -1, 64)
 
-	mp3Err := ffmpeg.Input(filePath).Output("./"+fileName+"_mp3.mp3", ffmpeg.KwArgs{
+	mp3Err := ffmpeg.Input(filePath).Output(outputName, ffmpeg.KwArgs{
 		"vn":  "",
 		"b:a": strBitrate + "k",
 	}).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
@@ -176,9 +180,35 @@ func mp3encode(filePath string, bitrate float32) {
 	encodingNow = false
 }
 
+func gifConvert(filePath string) {
+	var fileName string = filepath.Base(filePath)
+	var outputName = filepath.Dir(filePath) + `\` + strings.TrimSuffix(fileName, filepath.Ext(fileName)) + "_gif.gif"
+
+	gifErr := ffmpeg.Input(filePath).Output(outputName, ffmpeg.KwArgs{
+		"filter_complex": "fps=15,split[v1][v2]; [v1]palettegen=stats_mode=full [palette]; [v2][palette]paletteuse=dither=sierra2_4a",
+		"vsync":          "0",
+		"y":              "",
+		"loop":           "0",
+	}).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
+
+	if gifErr != nil {
+		encodeError = true
+		log.Println("Error occurred while encoding gif: %v", gifErr)
+		return
+	} else {
+		log.Println("Encoded file to .gif")
+	}
+	encodingNow = false
+
+}
+
 // Calculates the target bitrate in kilobits per second
-func calculateTarget(targetSize float32, duration float32) float32 {
+func calculateTarget(targetSize float32, duration float32, conservative bool) float32 {
 	var realTarget = targetSize * 8000 // kilobit conversion
 	var targetBitrate = realTarget / duration
-	return (targetBitrate * 0.98) // Leeway? Needs additional testing and research
+	if conservative {
+		return (targetBitrate * 0.98)
+	} else {
+		return targetBitrate
+	}
 }
