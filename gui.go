@@ -195,7 +195,7 @@ func loop() {
 				// Codec selection
 				g.Label("Video Codec"),
 				g.Row(
-					g.RadioButton("h264 (.mp4)", compression == 0).OnChange(func() {
+					g.RadioButton("H264 (.mp4)", compression == 0).OnChange(func() {
 						compression = 0
 					}),
 					g.Tooltip("h264 tip").Layout(
@@ -208,7 +208,7 @@ func loop() {
 						compression = 1
 					}),
 					g.Tooltip("VP9 tip").Layout(
-						g.BulletText("Better quality than h264"),
+						g.BulletText("Better quality than H264"),
 						g.BulletText("Takes longer to encode"),
 						g.BulletText("Discord won't natively play these videos on iOS devices"),
 					),
