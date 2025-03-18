@@ -296,7 +296,38 @@ func loop() {
 			),
 
 			g.TabItem("About").Layout(
-				g.Label("https://github.com/Gordon-T/Discord-Media-Tool"),
+				g.Row(
+					g.Label("Github:"),
+					g.Button("github.com/Gordon-T/Discord-Media-Tool").OnClick(func() {
+						g.OpenURL("https://github.com/Gordon-T/Discord-Media-Tool")
+					}),
+				),
+				g.Label(""),
+				g.Label("Libraries:"),
+				g.Row(
+					g.Label("FFmpeg:"),
+					g.Button("ffmpeg.org").OnClick(func() {
+						g.OpenURL("https://ffmpeg.org")
+					}),
+				),
+				g.Row(
+					g.Label("ffmpeg-go:"),
+					g.Button("github.com/u2takey/ffmpeg-go").OnClick(func() {
+						g.OpenURL("https://github.com/u2takey/ffmpeg-go")
+					}),
+				),
+				g.Row(
+					g.Label("giu:"),
+					g.Button("github.com/AllenDang/giu").OnClick(func() {
+						g.OpenURL("https://github.com/AllenDang/giu")
+					}),
+				),
+				g.Row(
+					g.Label("dialog:"),
+					g.Button("github.com/sqweek/dialog").OnClick(func() {
+						g.OpenURL("https://github.com/sqweek/dialog")
+					}),
+				),
 			),
 			/* // Gif converter GUI
 			g.TabItem("Gif Converter").Layout(
