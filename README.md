@@ -21,7 +21,7 @@ The audio converter uses the mp3 codec at 160 kb/s for the widest compatibility 
 6. Run `DMT.exe`
 7. Click "Select..." for either the "Video Converter" or "MP3 Converter" and choose a file using the file explorer prompt
 8. Click "Compress"
-9. The newly encoded file should be in the same directory as the selected file
+9. The newly encoded file should be in the same directory as the selected file with `_<video codec>` appended to the file name
 
 ## Building
 1. Clone and extract this repository
