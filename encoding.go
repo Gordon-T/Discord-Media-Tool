@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	ffmpeg "github.com/u2takey/ffmpeg-go"
+	ffmpeg "github.com/Gordon-T/ffmpeg-go"
 )
 
 type MediaInfo struct {
@@ -105,7 +105,6 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 			"c:v":      "libx264",
 			"preset":   "slow",
 			"b:v":      strMaxBitrate + "k",
-			"maxrate":  strMaxBitrate + "k",
 			"movflags": "+faststart",
 			"pass":     "2",
 			"c:a":      "libopus",
@@ -117,7 +116,6 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 		ffmpegArguments = ffmpeg.KwArgs{
 			"c:v":      "libvpx-vp9",
 			"b:v":      strMaxBitrate + "k",
-			"maxrate":  strMaxBitrate + "k",
 			"deadline": "good",
 			"pass":     "2",
 			"c:a":      "libopus",
@@ -127,6 +125,13 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 		outputName = outputName + `\` + strings.TrimSuffix(fileName, filepath.Ext(fileName)) + "_vp9.webm"
 	}
 
+	// Needs reworking
+	/*
+		-fs <limit_size>
+		Set the file size limit, expressed in bytes.
+		No further chunk of bytes is written after the limit is exceeded.
+		The size of the output file is slightly more than the requested file size.
+	*/
 	if fsArgument {
 		fSize, err := strconv.ParseFloat(strTargetSize, 32)
 		if err != nil {
@@ -134,7 +139,10 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 			log.Printf("Error occurred while parsing target file size: %v", err)
 			return
 		}
-		ffmpegArguments["fs"] = (float32(fSize) * 1048576)
+		ffmpegArguments["fs"] = int((fSize * 1048576) * 0.99)
+		log.Printf("fs size = %v", int((fSize*1048576)*0.99))
+		log.Printf("raw size = %v", fSize)
+		log.Printf("%v", ffmpegArguments)
 	}
 	log.Println(outputName)
 	pass2Err := ffmpeg.Input(filePath).Output(outputName, ffmpegArguments).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
@@ -180,6 +188,7 @@ func mp3encode(filePath string, bitrate float32) {
 	encodingNow = false
 }
 
+// TODO: Needs more research for gif compression
 func gifConvert(filePath string) {
 	var fileName string = filepath.Base(filePath)
 	var outputName = filepath.Dir(filePath) + `\` + strings.TrimSuffix(fileName, filepath.Ext(fileName)) + "_gif.gif"

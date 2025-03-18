@@ -15,9 +15,9 @@ import (
 var filePath string
 var compression int = 0
 var strTargetSize string = "10"
-var strAudioBitrate string = "192"
+var strAudioBitrate string = "160"
 var fsArgument bool
-var conservativeBitrate bool
+var conservativeBitrate bool = true
 
 // Popup Modal Variables
 var encodingNow bool
@@ -232,7 +232,7 @@ func loop() {
 					g.Tooltip("Conservative").Layout(
 						g.Label("After calculating the bitrate, reduce the bitrate slightly"),
 					),
-					g.Checkbox("Strict Mode", &fsArgument),
+					/* g.Checkbox("Strict Mode", &fsArgument),
 					g.Tooltip("Strict").Layout(
 						g.Label("Stops encoding if the file size reaches the target amount before"),
 						g.Label("finishing the encode, which can cause the duration of the output"),
@@ -240,7 +240,7 @@ func loop() {
 						g.Label(""),
 						g.Label("Enable this if the compressed file is larger than the specified"),
 						g.Label("target size without this checked, which normally shouldn't happen."),
-					),
+					), */
 				),
 
 				// Compress button
@@ -295,7 +295,10 @@ func loop() {
 				}),
 			),
 
-			// Gif converter GUI
+			g.TabItem("About").Layout(
+				g.Label("https://github.com/Gordon-T/Discord-Media-Tool"),
+			),
+			/* // Gif converter GUI
 			g.TabItem("Gif Converter").Layout(
 				// File Selection
 				g.Label("Work in progress\n"),
@@ -324,7 +327,7 @@ func loop() {
 						go beginGifConvert()
 					}
 				}),
-			),
+			), */
 		),
 	)
 }
