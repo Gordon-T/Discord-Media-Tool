@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	g "github.com/AllenDang/giu"
+	beep "github.com/gen2brain/beeep"
 	"github.com/sqweek/dialog"
 )
 
@@ -58,6 +59,7 @@ func beginEncode() {
 
 	encodingNow = false
 	encodingDone = true
+	beep.Notify("Discord Media Tool", "Video Encoding Complete!", "")
 }
 
 func beginAudioConvert() {
