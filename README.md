@@ -24,9 +24,10 @@ The audio converter uses the mp3 codec at 160 kb/s for the widest compatibility 
 9. The newly encoded file should be in the same directory as the selected file with `_<video codec>` appended to the file name
 
 ## Building
-1. Clone and extract this repository
-2. Run `go build -ldflags="-H=windowsgui -s -w" -o .` in the extracted directory
-3. `DMT.exe` should be built in the same directory
+1. Install Go
+2. Clone and extract this repository
+3. Run `go build -ldflags="-H=windowsgui -s -w" -o .` in the extracted directory
+4. `DMT.exe` should be built in the same directory
 
 ## Credits
 [FFmpeg](https://ffmpeg.org): Does the actual video/audio encoding
