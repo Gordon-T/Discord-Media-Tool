@@ -24,14 +24,19 @@ var conservativeBitrate bool = true
 var encodingNow bool
 var encodingDone bool
 
+var encodingFirstPass bool
+var encodingSecondPass bool
+
 var invalidFile bool
 var encodeError bool
 var ffmpegNotFound bool
 
+// Progress variable
+var progressStr string
+
 // Encode helper function
 func beginEncode() {
 	encodingNow = true
-	getMediaInfo(filePath, "video")
 	// Parse the target bitrate value from the GUI
 	targetFileSize, err := strconv.ParseFloat(strTargetSize, 32)
 	if err != nil {
@@ -40,7 +45,7 @@ func beginEncode() {
 	}
 
 	// Retrieve and parse video file information
-	mediaInfo := getMediaInfo(filePath, "video")
+	mediaInfo := getMediaInfo(filePath, "video") // {[{video 1920 1080} {audio 0 0}] {6.816000}}
 	if invalidFile {
 		log.Println("Aborting encode due to file error")
 		encodingNow = false
@@ -55,7 +60,7 @@ func beginEncode() {
 
 	// Calculate target bitrate and then compress
 	var target = calculateTarget(float32(targetFileSize), float32(duration), conservativeBitrate)
-	videoEncode(filePath, float32(target), compression)
+	videoEncode(filePath, float32(target), compression, duration)
 
 	encodingNow = false
 	encodingDone = true
@@ -125,9 +130,16 @@ func loop() {
 	}
 
 	// Shows when ffmpeg is currently encoding something to block out main gui interaction
-	if encodingNow {
-		g.PopupModal("Status").Flags(g.WindowFlagsNoMove | g.WindowFlagsNoResize).Layout(
-			g.Label("Encoding, please wait..."),
+	if encodingNow && encodingFirstPass {
+		g.PopupModal("Status").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
+			g.Label("Encoding first pass:"),
+			g.Label(progressStr),
+		).Build()
+		g.OpenPopup("Status")
+	} else if encodingNow && encodingSecondPass {
+		g.PopupModal("Status").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
+			g.Label("Encoding second pass:"),
+			g.Label(progressStr),
 		).Build()
 		g.OpenPopup("Status")
 	}
