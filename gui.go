@@ -130,16 +130,27 @@ func loop() {
 	}
 
 	// Shows when ffmpeg is currently encoding something to block out main gui interaction
-	if encodingNow && encodingFirstPass {
+	progressTemp := strings.Split(progressStr, ".")
+	progressNum := ""
+	if len(progressTemp) == 2 {
+		progressNum = progressTemp[1]
+	}
+	if encodingNow && encodingFirstPass && compression == 1 {
+		g.PopupModal("Status VP9 Pass 1").Flags(g.WindowFlagsNoMove | g.WindowFlagsNoResize).Layout(
+			g.Label("VP9 Pass 1 doesn't show progress :/"),
+		).Build()
+		g.OpenPopup("Status VP9 Pass 1")
+
+	} else if encodingNow && encodingFirstPass {
 		g.PopupModal("Status").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
-			g.Label("Encoding first pass:"),
-			g.Label(progressStr),
+			g.Label("Encoding Progress:"),
+			g.Label("Pass 1/2: "+progressNum+"%"),
 		).Build()
 		g.OpenPopup("Status")
 	} else if encodingNow && encodingSecondPass {
 		g.PopupModal("Status").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
-			g.Label("Encoding second pass:"),
-			g.Label(progressStr),
+			g.Label("Encoding Progress:"),
+			g.Label("Pass 2/2: "+progressNum+"%"),
 		).Build()
 		g.OpenPopup("Status")
 	}

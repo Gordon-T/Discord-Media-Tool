@@ -268,10 +268,10 @@ func TempTCPProgress(totalDuration float64) string {
 				cp = fmt.Sprintf("%.2f", float64(c)/totalDuration/1000000)
 			}
 			if strings.Contains(data, "progress=end") {
-				cp = "done"
+				cp = "Complete"
 			}
 			if cp == "" {
-				cp = ".0"
+				cp = ""
 			}
 			if cp != progressStr {
 				progressStr = cp
