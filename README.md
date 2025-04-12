@@ -24,7 +24,7 @@ The audio converter uses the mp3 codec at 160 kb/s for the widest compatibility 
 9. The newly encoded file should be in the same directory as the selected file with `_<video codec>` appended to the file name
 
 ## Building
-1. Install Go
+1. Have or install [Go](https://go.dev/doc/install) >= 1.23.5
 2. Clone and extract this repository
 3. Run `go build -ldflags="-H=windowsgui -s -w" -o .` in the extracted directory
 4. `DMT.exe` should be built in the same directory
@@ -38,5 +38,6 @@ The audio converter uses the mp3 codec at 160 kb/s for the widest compatibility 
 
 [dialog](https://github.com/sqweek/dialog): Used for opening the file explorer prompt easily
 
+[beeep](https://github.com/gen2brain/beeep): Used for windows notifications
 ## License
 This project is licensed under the [MIT License](./LICENSE)
