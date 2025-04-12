@@ -36,6 +36,7 @@ var progressStr string
 
 // Encode helper function
 func beginEncode() {
+	encodingFirstPass = true
 	encodingNow = true
 	// Parse the target bitrate value from the GUI
 	targetFileSize, err := strconv.ParseFloat(strTargetSize, 32)
@@ -49,12 +50,14 @@ func beginEncode() {
 	if invalidFile {
 		log.Println("Aborting encode due to file error")
 		encodingNow = false
+		encodingFirstPass = false
 		return
 	}
 	duration, err := strconv.ParseFloat(mediaInfo.Format.Duration, 32)
 	if err != nil {
 		log.Println("Error parsing video information: ", err)
 		encodingNow = false
+		encodingFirstPass = false
 		return
 	}
 
@@ -64,7 +67,7 @@ func beginEncode() {
 
 	encodingNow = false
 	encodingDone = true
-	beep.Notify("Discord Media Tool", "Video Encoding Complete!", "")
+	beep.Alert("Discord Media Tool", "Video Encoding Complete!", "")
 }
 
 func beginAudioConvert() {
@@ -133,38 +136,44 @@ func loop() {
 	progressTemp := strings.Split(progressStr, ".")
 	progressNum := ""
 	if len(progressTemp) == 2 {
-		progressNum = progressTemp[1]
+		progressNum = progressTemp[1] + "%"
+	} else {
+		progressNum = progressTemp[0]
 	}
 	if encodingNow && encodingFirstPass && compression == 1 {
-		g.PopupModal("Status VP9 Pass 1").Flags(g.WindowFlagsNoMove | g.WindowFlagsNoResize).Layout(
-			g.Label("VP9 Pass 1 doesn't show progress :/"),
+		g.PopupModal("Encoding Progress: VP9 Pass 1").Flags(g.WindowFlagsNoMove | g.WindowFlagsNoResize).Layout(
+			g.Label("VP9 Pass 1/2 doesn't show progress :/\nBut it is encoding though..."),
 		).Build()
-		g.OpenPopup("Status VP9 Pass 1")
-
+		g.OpenPopup("Encoding Progress: VP9 Pass 1")
 	} else if encodingNow && encodingFirstPass {
-		g.PopupModal("Status").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
-			g.Label("Encoding Progress:"),
-			g.Label("Pass 1/2: "+progressNum+"%"),
+		g.PopupModal("Encoding Status").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
+			g.Label("Encoding In Progress:"),
+			g.Label("Pass 1/2: "+progressNum),
 		).Build()
-		g.OpenPopup("Status")
+		g.OpenPopup("Encoding Status")
 	} else if encodingNow && encodingSecondPass {
-		g.PopupModal("Status").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
-			g.Label("Encoding Progress:"),
-			g.Label("Pass 2/2: "+progressNum+"%"),
+		g.PopupModal("Encoding Status").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
+			g.Label("Encoding In Progress:"),
+			g.Label("Pass 2/2: "+progressNum),
 		).Build()
-		g.OpenPopup("Status")
+		g.OpenPopup("Encoding Status")
+	} else if encodingNow {
+		g.PopupModal("Encoding Status").Flags(g.WindowFlagsNoMove | g.WindowFlagsNoResize).Layout(
+			g.Label("Encoding..."),
+		).Build()
+		g.OpenPopup("Encoding Status")
 	}
 
 	// Shows after encoding is complete
 	if encodingDone {
-		g.PopupModal("Status ").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
+		g.PopupModal("Encoding Status ").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
 			g.Label("Encoding finished!"),
 			g.Button("Close").OnClick(func() {
 				encodingDone = false
 				g.CloseCurrentPopup()
 			}),
 		).Build()
-		g.OpenPopup("Status ")
+		g.OpenPopup("Encoding Status ")
 	}
 
 	// Shows when a invalid file is selected
@@ -351,6 +360,12 @@ func loop() {
 					g.Label("dialog:"),
 					g.Button("github.com/sqweek/dialog").OnClick(func() {
 						g.OpenURL("https://github.com/sqweek/dialog")
+					}),
+				),
+				g.Row(
+					g.Label("beeep:"),
+					g.Button("github.com/gen2brain/beeep").OnClick(func() {
+						g.OpenURL("https://github.com/gen2brain/beeep")
 					}),
 				),
 			),

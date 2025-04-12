@@ -99,7 +99,6 @@ func videoEncode(filePath string, bitrate float32, codecType int, duration float
 		outputName = "./" + outputName + "_vp9.webm"
 	}
 
-	encodingFirstPass = true
 	pass1Err := ffmpeg.Input(filePath).Output(outputName, ffmpegArguments).GlobalArgs("-progress", TempTCPProgress(duration)).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
 
 	if pass1Err != nil {
@@ -237,11 +236,11 @@ func calculateTarget(targetSize float32, duration float32, conservative bool) fl
 }
 
 func TempTCPProgress(totalDuration float64) string {
-	ln, err := net.Listen("tcp", "127.0.0.1:0") // Listen on a random available port
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		panic(err)
 	}
-	addr := ln.Addr().String() // e.g., 127.0.0.1:12345
+	addr := ln.Addr().String()
 
 	go func() {
 		defer ln.Close()
@@ -254,7 +253,7 @@ func TempTCPProgress(totalDuration float64) string {
 
 		buf := make([]byte, 1024)
 		data := ""
-		progressStr = ""
+		progressStr = "Starting..."
 		for {
 			n, err := conn.Read(buf)
 			if err != nil {
@@ -268,38 +267,17 @@ func TempTCPProgress(totalDuration float64) string {
 				cp = fmt.Sprintf("%.2f", float64(c)/totalDuration/1000000)
 			}
 			if strings.Contains(data, "progress=end") {
-				cp = "Complete"
+				cp = "Complete!"
 			}
 			if cp == "" {
-				cp = ""
+				cp = "Starting..."
 			}
 			if cp != progressStr {
 				progressStr = cp
-				fmt.Println("progress: ", progressStr)
+				log.Println("progress: ", progressStr)
 			}
 		}
 	}()
 
 	return "http://" + addr
-}
-
-type probeFormat struct {
-	Duration string `json:"duration"`
-}
-
-type probeData struct {
-	Format probeFormat `json:"format"`
-}
-
-func probeDuration(a string) (float64, error) {
-	pd := probeData{}
-	err := json.Unmarshal([]byte(a), &pd)
-	if err != nil {
-		return 0, err
-	}
-	f, err := strconv.ParseFloat(pd.Format.Duration, 64)
-	if err != nil {
-		return 0, err
-	}
-	return f, nil
 }
