@@ -179,24 +179,36 @@ func videoEncode(filePath string, bitrate float32, codecType int, duration float
 
 }
 
-func mp3encode(filePath string, bitrate float32) {
+func audioEncode(filePath string, bitrate float32, codecType int, duration float64) {
 	var fileName string = filepath.Base(filePath)
-	var outputName = filepath.Dir(filePath) + `\` + strings.TrimSuffix(fileName, filepath.Ext(fileName)) + "_mp3.mp3"
+	var outputName = filepath.Dir(filePath) + `\` + strings.TrimSuffix(fileName, filepath.Ext(fileName))
+	var strMaxBitrate = strconv.FormatFloat(float64(bitrate), 'f', -1, 64)
+	var ffmpegArguments = ffmpeg.KwArgs{}
+	if codecType == 0 { //mp3
+		ffmpegArguments = ffmpeg.KwArgs{
+			"vn":  "",
+			"c:a": "libmp3lame",
+			"b:a": strMaxBitrate + "k",
+		}
+		outputName = outputName + "_mp3.mp3"
+	} else { //opus
+		ffmpegArguments = ffmpeg.KwArgs{
+			"vn":  "",
+			"c:a": "libopus",
+			"b:a": strMaxBitrate + "k",
+		}
+		outputName = outputName + "_opus.opus"
+	}
+	log.Printf("arguments: %v\n", ffmpegArguments)
 
-	// Bitrate shenanigans
-	var strBitrate = strconv.FormatFloat(float64(bitrate), 'f', -1, 64)
+	audioErr := ffmpeg.Input(filePath).Output(outputName, ffmpegArguments).GlobalArgs("-progress", TempTCPProgress(duration)).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
 
-	mp3Err := ffmpeg.Input(filePath).Output(outputName, ffmpeg.KwArgs{
-		"vn":  "",
-		"b:a": strBitrate + "k",
-	}).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
-
-	if mp3Err != nil {
+	if audioErr != nil {
 		encodeError = true
-		log.Println("Error occurred while encoding mp3: %v", mp3Err)
+		log.Println("Error occurred while encoding mp3: ", audioErr)
 		return
 	} else {
-		log.Println("Encoded file to .mp3")
+		log.Println("Encoded audio file!")
 	}
 	encodingNow = false
 }
@@ -267,7 +279,7 @@ func TempTCPProgress(totalDuration float64) string {
 				cp = fmt.Sprintf("%.2f", float64(c)/totalDuration/1000000)
 			}
 			if strings.Contains(data, "progress=end") {
-				cp = "Complete!"
+				cp = "Complete"
 			}
 			if cp == "" {
 				cp = "Starting..."

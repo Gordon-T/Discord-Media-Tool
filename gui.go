@@ -14,7 +14,8 @@ import (
 
 // General UI Variables
 var filePath string
-var compression int = 0
+var videoCompression int = 0
+var audioCompression int = 0
 var strTargetSize string = "10"
 var strAudioBitrate string = "160"
 var fsArgument bool
@@ -22,11 +23,13 @@ var conservativeBitrate bool = true
 
 // Popup Modal Variables
 var encodingNow bool
+var audioEncodingNow bool
 var encodingDone bool
 
 var encodingFirstPass bool
 var encodingSecondPass bool
 
+// Error variables
 var invalidFile bool
 var encodeError bool
 var ffmpegNotFound bool
@@ -63,7 +66,7 @@ func beginEncode() {
 
 	// Calculate target bitrate and then compress
 	var target = calculateTarget(float32(targetFileSize), float32(duration), conservativeBitrate)
-	videoEncode(filePath, float32(target), compression, duration)
+	videoEncode(filePath, float32(target), videoCompression, duration)
 
 	encodingNow = false
 	encodingDone = true
@@ -75,6 +78,7 @@ func beginAudioConvert() {
 	// .mp3, .m4a, .m4a(aac non-apple), .opus, .flac, .wav
 	// .mp4 audio stream, .mkv audio, .webm audio ?
 	encodingNow = true
+	audioEncodingNow = true
 	targetAudioBitrate, err := strconv.ParseFloat(strAudioBitrate, 32)
 	if err != nil {
 		log.Println("Error with parsing file size: ", err)
@@ -86,20 +90,30 @@ func beginAudioConvert() {
 	if invalidFile || mediaInfo.Format.Duration == "invalid" {
 		log.Println("Aborting encode due to file error")
 		encodingNow = false
+		audioEncodingNow = false
 		return
 	}
 
+	duration, err := strconv.ParseFloat(mediaInfo.Format.Duration, 32)
+	if err != nil {
+		log.Println("Error parsing audio duration: ", err)
+		encodingNow = false
+		audioEncodingNow = false
+		return
+	}
 	// Parse bitrate string
 	audioBitrate, err := strconv.ParseFloat(strAudioBitrate, 32)
 	if err != nil {
-		log.Println("Error parsing video information: ", err)
+		log.Println("Error parsing audio information: ", err)
 		encodingNow = false
+		audioEncodingNow = false
 		return
 	}
 
-	// Encode the audio into mp3
-	mp3encode(filePath, float32(audioBitrate))
+	// Encode the audio into a audio
+	audioEncode(filePath, float32(audioBitrate), audioCompression, duration)
 
+	audioEncodingNow = false
 	encodingNow = false
 	encodingDone = true
 }
@@ -140,7 +154,7 @@ func loop() {
 	} else {
 		progressNum = progressTemp[0]
 	}
-	if encodingNow && encodingFirstPass && compression == 1 {
+	if encodingNow && encodingFirstPass && videoCompression == 1 {
 		g.PopupModal("Encoding Progress: VP9 Pass 1").Flags(g.WindowFlagsNoMove | g.WindowFlagsNoResize).Layout(
 			g.Label("VP9 Pass 1/2 doesn't show progress :/\nBut it is encoding though..."),
 		).Build()
@@ -157,6 +171,11 @@ func loop() {
 			g.Label("Pass 2/2: "+progressNum),
 		).Build()
 		g.OpenPopup("Encoding Status")
+	} else if encodingNow && audioEncodingNow {
+		g.PopupModal("Audio Encoding Status").Flags(g.WindowFlagsNoMove | g.WindowFlagsNoResize).Layout(
+			g.Label("Encoding Progress: " + progressNum + "                 "),
+		).Build()
+		g.OpenPopup("Audio Encoding Status")
 	} else if encodingNow {
 		g.PopupModal("Encoding Status").Flags(g.WindowFlagsNoMove | g.WindowFlagsNoResize).Layout(
 			g.Label("Encoding..."),
@@ -229,8 +248,8 @@ func loop() {
 				// Codec selection
 				g.Label("Video Codec"),
 				g.Row(
-					g.RadioButton("H264 (.mp4)", compression == 0).OnChange(func() {
-						compression = 0
+					g.RadioButton("H264 (.mp4)", videoCompression == 0).OnChange(func() {
+						videoCompression = 0
 					}),
 					g.Tooltip("h264 tip").Layout(
 						g.BulletText("Average quality"),
@@ -238,8 +257,8 @@ func loop() {
 						g.BulletText("Near universal compatibility"),
 					),
 
-					g.RadioButton("VP9 (.webm)", compression == 1).OnChange(func() {
-						compression = 1
+					g.RadioButton("VP9 (.webm)", videoCompression == 1).OnChange(func() {
+						videoCompression = 1
 					}),
 					g.Tooltip("VP9 tip").Layout(
 						g.BulletText("Better quality than H264"),
@@ -278,18 +297,21 @@ func loop() {
 				),
 
 				// Compress button
-				g.Button("Compress").OnClick(func() {
-					if encodingDone {
-						return
-					} else {
-						invalidFile = false
-						go beginEncode() // go routine to avoid blocking giu main thread
-					}
-				}),
+				g.Label("\n\n\n"),
+				g.Align(g.AlignCenter).To(
+					g.Button("Compress").Size(125, 30).OnClick(func() {
+						if encodingDone {
+							return
+						} else {
+							invalidFile = false
+							go beginEncode() // go routine to avoid blocking giu main thread
+						}
+					}),
+				),
 			),
 
 			// Audio converter GUI
-			g.TabItem("MP3 Converter").Layout(
+			g.TabItem("Audio Converter").Layout(
 
 				// File Selection
 				g.Label("Audio/Video File"),
@@ -309,6 +331,24 @@ func loop() {
 					}),
 				),
 
+				// Audio codec selection
+				g.Label("Audio Codec"),
+				g.Row(
+					g.RadioButton("MP3 (.mp3)", audioCompression == 0).OnChange(func() {
+						audioCompression = 0
+					}),
+					g.Tooltip("mp3 tip").Layout(
+						g.BulletText("MP3 files will probably play on anything with a speaker"),
+					),
+
+					g.RadioButton("Opus (.opus)", audioCompression == 1).OnChange(func() {
+						audioCompression = 1
+					}),
+					g.Tooltip("opus tip").Layout(
+						g.BulletText("Better quality at even lower bitrates compared to mp3"),
+						g.BulletText("Will play on most modern devices and embeds in discord"),
+					),
+				),
 				// Bitrate selection
 				g.Label("Audio Bitrate"),
 				g.Row(
@@ -319,17 +359,23 @@ func loop() {
 					),
 					g.Label("Kb/s"),
 				),
-				g.Button("Convert").OnClick(func() {
-					if encodingDone {
-						return
-					} else {
-						invalidFile = false
-						go beginAudioConvert()
-					}
-				}),
+
+				g.Label("\n\n\n"),
+				g.Align(g.AlignCenter).To(
+					g.Button("Convert").Size(125, 30).OnClick(func() {
+						if encodingDone {
+							return
+						} else {
+							invalidFile = false
+							go beginAudioConvert()
+						}
+					}),
+				),
 			),
 
+			// About tab
 			g.TabItem("About").Layout(
+				g.Label("Version: 1.0"),
 				g.Row(
 					g.Label("Github:"),
 					g.Button("github.com/Gordon-T/Discord-Media-Tool").OnClick(func() {
