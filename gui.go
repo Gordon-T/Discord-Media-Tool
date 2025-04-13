@@ -116,6 +116,7 @@ func beginAudioConvert() {
 	audioEncodingNow = false
 	encodingNow = false
 	encodingDone = true
+	beep.Alert("Discord Media Tool", "Audio Encoding Complete!", "")
 }
 
 func beginGifConvert() {
@@ -375,7 +376,7 @@ func loop() {
 
 			// About tab
 			g.TabItem("About").Layout(
-				g.Label("Version: 1.1"),
+				g.Label("Version: 1.1 RC"),
 				g.Row(
 					g.Label("Github:"),
 					g.Button("github.com/Gordon-T/Discord-Media-Tool").OnClick(func() {
