@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 
 	g "github.com/AllenDang/giu"
 	beep "github.com/gen2brain/beeep"
@@ -193,7 +194,7 @@ func loop() {
 	}
 	if encodingNow && encodingFirstPass && videoCompression == 1 {
 		g.PopupModal("Encoding Progress: VP9 Pass 1").Flags(g.WindowFlagsNoMove | g.WindowFlagsNoResize).Layout(
-			g.Label("VP9 Pass 1/2 doesn't show progress :/\nBut it is encoding though..."),
+			g.Label("FFmpeg doesn't show progress for VP9 Pass 1 encoding\nBut it is encoding though..."),
 		).Build()
 		g.OpenPopup("Encoding Progress: VP9 Pass 1")
 	} else if encodingNow && encodingFirstPass {
@@ -420,7 +421,7 @@ func loop() {
 
 			// About tab
 			g.TabItem("About").Layout(
-				g.Label("Version: 1.1 RC"),
+				g.Label("Version: 1.1"),
 				g.Row(
 					g.Label("Github:"),
 					g.Button("github.com/Gordon-T/Discord-Media-Tool").OnClick(func() {
@@ -507,6 +508,7 @@ func dependencyCheck() {
 	// Check if the files themselves are actually valid ffmpeg builds
 	if !ffmpegNotFound {
 		cmd := exec.Command("./ffmpeg.exe", "-version")
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 		outputBytes, err := cmd.Output()
 		if err != nil {
 			invalidFFmpeg = true
@@ -525,6 +527,7 @@ func dependencyCheck() {
 
 	if !ffprobeNotFound {
 		cmd := exec.Command("./ffprobe.exe", "-version")
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 		outputBytes, err := cmd.Output()
 		if err != nil {
 			invalidFFprobe = true
