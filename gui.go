@@ -226,6 +226,7 @@ func loop() {
 		g.PopupModal("Encoding Status ").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
 			g.Label("Encoding finished!"),
 			g.Button("Close").OnClick(func() {
+				progressStr = "Starting" // reset progress
 				encodingDone = false
 				g.CloseCurrentPopup()
 			}),
