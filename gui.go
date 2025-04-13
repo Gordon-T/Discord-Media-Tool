@@ -274,6 +274,9 @@ func loop() {
 							g.InputText(&filePath),
 						),
 					),
+					g.Tooltip("Video Selection").Layout(
+						g.Label("The video or audio file to compress into a video file"),
+					),
 					g.Button("Select...").OnClick(func() {
 						filename, err := dialog.File().Title("Select a File").Load()
 						if err != nil {
@@ -322,7 +325,8 @@ func loop() {
 					g.Label("MB"),
 					g.Checkbox("Convervative Bitrate", &conservativeBitrate),
 					g.Tooltip("Conservative").Layout(
-						g.Label("After calculating the bitrate, reduce the bitrate slightly"),
+						g.BulletText("After calculating the bitrate, reduce the bitrate slightly."),
+						g.BulletText("Enabled by default since this can help with the target file size"),
 					),
 					/* g.Checkbox("Strict Mode", &fsArgument),
 					g.Tooltip("Strict").Layout(
@@ -357,12 +361,15 @@ func loop() {
 			g.TabItem("Audio Converter").Layout(
 
 				// File Selection
-				g.Label("Audio/Video File"),
+				g.Label("Audio File"),
 				g.Row(
 					g.Style().SetColor(g.StyleColorFrameBg, color.RGBA{0xF3, 0xF3, 0xF3, 255}).To(
 						g.Style().SetColor(g.StyleColorText, color.RGBA{0x00, 0x00, 0x00, 255}).To(
 							g.InputText(&filePath),
 						),
+					),
+					g.Tooltip("Audio Selection").Layout(
+						g.Label("The audio or video file to compress into a audio file"),
 					),
 					g.Button("Select...").OnClick(func() {
 						filename, err := dialog.File().Title("Select a File").Load()
@@ -389,7 +396,7 @@ func loop() {
 					}),
 					g.Tooltip("opus tip").Layout(
 						g.BulletText("Better quality at even lower bitrates compared to mp3"),
-						g.BulletText("Will play on most modern devices and embeds in discord"),
+						g.BulletText("Will play on most modern devices"),
 					),
 				),
 				// Bitrate selection
@@ -547,7 +554,7 @@ func dependencyCheck() {
 
 func main() {
 	// Check if dependencies exist
-	dependencyCheck()
+	go dependencyCheck()
 
 	// Start giu
 	wnd := g.NewMasterWindow("Discord Media Tool", 400, 300, g.MasterWindowFlagsNotResizable)
