@@ -405,7 +405,7 @@ func loop() {
 
 				g.Label("\n\n\n"),
 				g.Align(g.AlignCenter).To(
-					g.Button("Convert").Size(125, 30).OnClick(func() {
+					g.Button("Compress").Size(125, 30).OnClick(func() {
 						dependencyCheck()
 						if ffmpegNotFound || ffprobeNotFound {
 							return
