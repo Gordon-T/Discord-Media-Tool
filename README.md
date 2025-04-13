@@ -25,14 +25,24 @@ For the audio converter you can choose between MP3 or Opus codecs:
  - **Opus** is a newer and more advanced codec compared to MP3 that can achieve higher perceived quality at the same or even less bitrate.
 
 ## How to use:
-1. Go to the [releases](https://github.com/Gordon-T/Discord-Media-Tool/releases) and download the `latest.zip`
+1. Go to the [releases](https://github.com/Gordon-T/Discord-Media-Tool/releases) and download the latest 
 2. Go to [FFmpeg](https://ffmpeg.org/download.html) and download a windows build of FFmpeg
-3. Extract the `latest.zip` file and the ffmpeg build file
+3. Extract the `latest.zip` file and the ffmpeg build files
 5. Take the `ffmpeg.exe` and `ffprobe.exe` from the `/bin` folder of the extracted ffmpeg build and place them in the same directory as `DMT.exe` from the extracted `latest.zip`
+  
+   The resulting file structure should look like:
+    ```
+    ├──📁DMT Folder
+    │  ├──▶️DMT.exe
+    │  ├──📄ffmpeg.exe
+    │  └──📄ffprobe.exe
+    ```
 6. Run `DMT.exe`
 7. Click "Select..." for either the "Video Converter" or "MP3 Converter" and choose a file using the file explorer prompt
 8. Click "Compress"
 9. The newly encoded file should be in the same directory as the selected file with `_<video codec>` appended to the file name
+
+
 
 ## Building
 1. Have or install [Go](https://go.dev/doc/install) >= 1.23.5
