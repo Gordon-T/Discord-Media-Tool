@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"log"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -34,6 +35,8 @@ var invalidFile bool
 var encodeError bool
 var ffmpegNotFound bool
 var ffprobeNotFound bool
+var invalidFFmpeg bool
+var invalidFFprobe bool
 
 // Progress variable
 var progressStr string
@@ -162,6 +165,22 @@ func loop() {
 			}),
 		).Build()
 		g.OpenPopup("Missing Dependency")
+	} else if invalidFFmpeg {
+		g.PopupModal("Invalid FFmpeg").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
+			g.Label(`Broken or unsupported version of "ffmpeg.exe"`),
+			g.Button("Close").OnClick(func() {
+				os.Exit(1)
+			}),
+		).Build()
+		g.OpenPopup("Invalid FFmpeg")
+	} else if invalidFFprobe {
+		g.PopupModal("Invalid FFprobe").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
+			g.Label(`Broken or unsupported version of "ffprobe.exe"`),
+			g.Button("Close").OnClick(func() {
+				os.Exit(1)
+			}),
+		).Build()
+		g.OpenPopup("Invalid FFprobe")
 	}
 
 	// Shows when ffmpeg is currently encoding something to block out main gui interaction
@@ -318,6 +337,10 @@ func loop() {
 				g.Label("\n\n\n"),
 				g.Align(g.AlignCenter).To(
 					g.Button("Compress").Size(125, 30).OnClick(func() {
+						dependencyCheck()
+						if ffmpegNotFound || ffprobeNotFound {
+							return
+						}
 						if encodingDone {
 							return
 						} else {
@@ -381,6 +404,10 @@ func loop() {
 				g.Label("\n\n\n"),
 				g.Align(g.AlignCenter).To(
 					g.Button("Convert").Size(125, 30).OnClick(func() {
+						dependencyCheck()
+						if ffmpegNotFound || ffprobeNotFound {
+							return
+						}
 						if encodingDone {
 							return
 						} else {
@@ -466,8 +493,8 @@ func loop() {
 	)
 }
 
-func main() {
-	// Check if dependencies exist
+func dependencyCheck() {
+	// Check if the files exist in the current directory
 	mpegCheck, err := os.Stat("ffmpeg.exe")
 	if err != nil && mpegCheck == nil {
 		ffmpegNotFound = true
@@ -476,6 +503,47 @@ func main() {
 	if err != nil && probeCheck == nil {
 		ffprobeNotFound = true
 	}
+
+	// Check if the files themselves are actually valid ffmpeg builds
+	if !ffmpegNotFound {
+		cmd := exec.Command("./ffmpeg.exe", "-version")
+		outputBytes, err := cmd.Output()
+		if err != nil {
+			invalidFFmpeg = true
+			log.Println("Error running ffmpeg:", err)
+			if exitError, ok := err.(*exec.ExitError); ok {
+				log.Printf("FFmpeg stderr: %s", string(exitError.Stderr))
+			}
+			return
+		}
+		outputString := string(outputBytes)
+
+		if outputString[:14] != "ffmpeg version" {
+			invalidFFmpeg = true
+		}
+	}
+
+	if !ffprobeNotFound {
+		cmd := exec.Command("./ffprobe.exe", "-version")
+		outputBytes, err := cmd.Output()
+		if err != nil {
+			invalidFFprobe = true
+			log.Println("Error running ffmpeg:", err)
+			if exitError, ok := err.(*exec.ExitError); ok {
+				log.Printf("FFmpeg stderr: %s", string(exitError.Stderr))
+			}
+			return
+		}
+		outputString := string(outputBytes)
+		if outputString[:15] != "ffprobe version" {
+			invalidFFprobe = true
+		}
+	}
+}
+
+func main() {
+	// Check if dependencies exist
+	dependencyCheck()
 
 	// Start giu
 	wnd := g.NewMasterWindow("Discord Media Tool", 400, 300, g.MasterWindowFlagsNotResizable)
