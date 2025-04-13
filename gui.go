@@ -33,6 +33,7 @@ var encodingSecondPass bool
 var invalidFile bool
 var encodeError bool
 var ffmpegNotFound bool
+var ffprobeNotFound bool
 
 // Progress variable
 var progressStr string
@@ -137,14 +138,30 @@ func loop() {
 	// Conditional Popup Modals
 
 	// Shows when ffmpeg is not found
-	if ffmpegNotFound {
-		g.PopupModal("Dependency Check").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
-			g.Label(`"ffmpeg.exe" or "ffprobe.exe" not found!`),
+	if ffmpegNotFound && ffprobeNotFound {
+		g.PopupModal("Missing Dependency").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
+			g.Label(`"ffmpeg.exe" and "ffprobe.exe" not found!`),
 			g.Button("Close").OnClick(func() {
-				os.Exit(0)
+				os.Exit(1)
 			}),
 		).Build()
-		g.OpenPopup("Dependency Check")
+		g.OpenPopup("Missing Dependency")
+	} else if ffmpegNotFound {
+		g.PopupModal("Missing Dependency").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
+			g.Label(`"ffmpeg.exe" not found!`),
+			g.Button("Close").OnClick(func() {
+				os.Exit(1)
+			}),
+		).Build()
+		g.OpenPopup("Missing Dependency")
+	} else if ffprobeNotFound {
+		g.PopupModal("Missing Dependency").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
+			g.Label(`"ffprobe.exe" not found!`),
+			g.Button("Close").OnClick(func() {
+				os.Exit(1)
+			}),
+		).Build()
+		g.OpenPopup("Missing Dependency")
 	}
 
 	// Shows when ffmpeg is currently encoding something to block out main gui interaction
@@ -383,8 +400,7 @@ func loop() {
 						g.OpenURL("https://github.com/Gordon-T/Discord-Media-Tool")
 					}),
 				),
-				g.Label(""),
-				g.Label("Libraries:"),
+				g.Label("\nLibraries:"),
 				g.Row(
 					g.Label("FFmpeg:"),
 					g.Button("ffmpeg.org").OnClick(func() {
@@ -458,7 +474,7 @@ func main() {
 	}
 	probeCheck, err := os.Stat("ffprobe.exe")
 	if err != nil && probeCheck == nil {
-		ffmpegNotFound = true
+		ffprobeNotFound = true
 	}
 
 	// Start giu
