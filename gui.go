@@ -193,20 +193,20 @@ func loop() {
 		progressNum = progressTemp[0]
 	}
 	if encodingNow && encodingFirstPass && videoCompression == 1 {
-		g.PopupModal("Encoding Progress: VP9 Pass 1").Flags(g.WindowFlagsNoMove | g.WindowFlagsNoResize).Layout(
-			g.Label("FFmpeg doesn't show progress for VP9 Pass 1 encoding\nBut it is encoding though..."),
+		g.PopupModal("Encoding Progress: VP9 Analysis").Flags(g.WindowFlagsNoMove | g.WindowFlagsNoResize).Layout(
+			g.Label("Status: Analyzing File\nProgress: VP9 doesn't analysis progress"),
 		).Build()
-		g.OpenPopup("Encoding Progress: VP9 Pass 1")
+		g.OpenPopup("Encoding Progress: VP9 Analysis")
 	} else if encodingNow && encodingFirstPass {
 		g.PopupModal("Encoding Status").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
-			g.Label("Encoding In Progress:"),
-			g.Label("Pass 1/2: "+progressNum),
+			g.Label("Status: Analyzing file"),
+			g.Label("Progress: "+progressNum),
 		).Build()
 		g.OpenPopup("Encoding Status")
 	} else if encodingNow && encodingSecondPass {
 		g.PopupModal("Encoding Status").Flags(g.WindowFlagsNoMove|g.WindowFlagsNoResize).Layout(
-			g.Label("Encoding In Progress:"),
-			g.Label("Pass 2/2: "+progressNum),
+			g.Label("Status: Compressing"),
+			g.Label("Progress: "+progressNum),
 		).Build()
 		g.OpenPopup("Encoding Status")
 	} else if encodingNow && audioEncodingNow {
