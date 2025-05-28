@@ -2,11 +2,20 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
+
+	//"math/rand"
+	"net"
 	"os"
+
+	//"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+
+	//"time"
 
 	ffmpeg "github.com/Gordon-T/ffmpeg-go"
 )
@@ -53,7 +62,7 @@ func getMediaInfo(fileName string, mediaType string) MediaInfo {
 	return *mediaInfo
 }
 
-func videoEncode(filePath string, bitrate float32, codecType int) {
+func videoEncode(filePath string, bitrate float32, codecType int, duration float64) {
 
 	// File directory shenanigans
 	var fileName string = filepath.Base(filePath)
@@ -89,14 +98,16 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 		}
 		outputName = "./" + outputName + "_vp9.webm"
 	}
-	pass1Err := ffmpeg.Input(filePath).Output(outputName, ffmpegArguments).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
+
+	pass1Err := ffmpeg.Input(filePath).Output(outputName, ffmpegArguments).GlobalArgs("-progress", TempTCPProgress(duration)).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
 
 	if pass1Err != nil {
 		encodeError = true
+		encodingFirstPass = false
 		log.Println("Error occurred while performing 1st pass: %v", pass1Err)
 		return
 	}
-
+	encodingFirstPass = false
 	// Encode 2nd pass
 	outputName = filepath.Dir(filePath)
 
@@ -145,7 +156,9 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 		log.Printf("%v", ffmpegArguments)
 	}
 	log.Println(outputName)
-	pass2Err := ffmpeg.Input(filePath).Output(outputName, ffmpegArguments).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
+	encodingSecondPass = true
+	pass2Err := ffmpeg.Input(filePath).Output(outputName, ffmpegArguments).GlobalArgs("-progress", TempTCPProgress(duration)).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
+	encodingSecondPass = false
 	if pass2Err != nil {
 		encodeError = true
 		log.Printf("Error occurred while performing 2nd pass: %v", pass2Err)
@@ -166,24 +179,36 @@ func videoEncode(filePath string, bitrate float32, codecType int) {
 
 }
 
-func mp3encode(filePath string, bitrate float32) {
+func audioEncode(filePath string, bitrate float32, codecType int, duration float64) {
 	var fileName string = filepath.Base(filePath)
-	var outputName = filepath.Dir(filePath) + `\` + strings.TrimSuffix(fileName, filepath.Ext(fileName)) + "_mp3.mp3"
+	var outputName = filepath.Dir(filePath) + `\` + strings.TrimSuffix(fileName, filepath.Ext(fileName))
+	var strMaxBitrate = strconv.FormatFloat(float64(bitrate), 'f', -1, 64)
+	var ffmpegArguments = ffmpeg.KwArgs{}
+	if codecType == 0 { //mp3
+		ffmpegArguments = ffmpeg.KwArgs{
+			"vn":  "",
+			"c:a": "libmp3lame",
+			"b:a": strMaxBitrate + "k",
+		}
+		outputName = outputName + "_mp3.mp3"
+	} else { //opus
+		ffmpegArguments = ffmpeg.KwArgs{
+			"vn":  "",
+			"c:a": "libopus",
+			"b:a": strMaxBitrate + "k",
+		}
+		outputName = outputName + "_opus.opus"
+	}
+	log.Printf("arguments: %v\n", ffmpegArguments)
 
-	// Bitrate shenanigans
-	var strBitrate = strconv.FormatFloat(float64(bitrate), 'f', -1, 64)
+	audioErr := ffmpeg.Input(filePath).Output(outputName, ffmpegArguments).GlobalArgs("-progress", TempTCPProgress(duration)).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
 
-	mp3Err := ffmpeg.Input(filePath).Output(outputName, ffmpeg.KwArgs{
-		"vn":  "",
-		"b:a": strBitrate + "k",
-	}).OverWriteOutput().SetFfmpegPath("./ffmpeg.exe").ErrorToStdOut().Run()
-
-	if mp3Err != nil {
+	if audioErr != nil {
 		encodeError = true
-		log.Println("Error occurred while encoding mp3: %v", mp3Err)
+		log.Println("Error occurred while encoding mp3: ", audioErr)
 		return
 	} else {
-		log.Println("Encoded file to .mp3")
+		log.Println("Encoded audio file!")
 	}
 	encodingNow = false
 }
@@ -220,4 +245,51 @@ func calculateTarget(targetSize float32, duration float32, conservative bool) fl
 	} else {
 		return targetBitrate
 	}
+}
+
+func TempTCPProgress(totalDuration float64) string {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		panic(err)
+	}
+	addr := ln.Addr().String()
+
+	go func() {
+		defer ln.Close()
+		re := regexp.MustCompile(`out_time_ms=(\d+)`)
+		conn, err := ln.Accept()
+		if err != nil {
+			log.Fatal("accept error:", err)
+		}
+		defer conn.Close()
+
+		buf := make([]byte, 1024)
+		data := ""
+		progressStr = "Starting..."
+		for {
+			n, err := conn.Read(buf)
+			if err != nil {
+				return
+			}
+			data += string(buf[:n])
+			a := re.FindAllStringSubmatch(data, -1)
+			cp := ""
+			if len(a) > 0 && len(a[len(a)-1]) > 0 {
+				c, _ := strconv.Atoi(a[len(a)-1][len(a[len(a)-1])-1])
+				cp = fmt.Sprintf("%.2f", float64(c)/totalDuration/1000000)
+			}
+			if strings.Contains(data, "progress=end") {
+				cp = "Complete"
+			}
+			if cp == "" {
+				cp = "Starting..."
+			}
+			if cp != progressStr {
+				progressStr = cp
+				log.Println("progress: ", progressStr)
+			}
+		}
+	}()
+
+	return "http://" + addr
 }
