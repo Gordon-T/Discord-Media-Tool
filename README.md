@@ -1,11 +1,13 @@
 # Discord Media Tool
 
-Want to upload videos and clips directly onto Discord? Frustrated with their file size limits? Too poor to afford Nitro?
+Want to upload videos and clips directly onto Discord? Frustrated with their file size limits? Stingy like me and don't want to pay for Nitro?
 Here's a solution for you!
 
 Discord Media Tool is a program that compresses your video and audio files to be under a specified size while maximizing quality so you can easily upload files that will be embedded in Discord chats. The design is intended to be very simple such that you can just run the program, select a file, and compress it.
 
 Your files remain as your business! All operations are done locally on your machine so you don't have to upload your files onto some website. 
+
+Disclaimer: Discord Media Tool is an unofficial project that is not affiliated with Discord or Discord Inc.
 
 ## Interface
 ![img.png](./images/gui.PNG)
@@ -31,7 +33,7 @@ Don't understand an option? No problem? Just hover your cursor over the option a
 8. Click "Compress"
 9. The newly encoded file should be in the same directory as the selected file with `_<video codec>` appended to the file name
 
-## Technical choices
+## Technical decisions
 ### Video Converter
 For the video converter you can choose the H264 or VP9 codecs:
  - **H264:** is the default as it has the widest viewing compatibility while maintaining a balance of decent video quality and encoding speed.
